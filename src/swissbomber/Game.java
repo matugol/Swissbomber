@@ -5,8 +5,10 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.GraphicsEnvironment;
 import java.awt.RenderingHints;
 import java.awt.event.KeyEvent;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -46,7 +48,7 @@ public class Game extends JPanel {
 		setPreferredSize(new Dimension(map.length * tileLength + 200, map[0].length * tileLength));
 		setFocusable(true);
 		requestFocusInWindow();
-		
+				
 		new Thread(loop(this)).start();
 	}
 	
@@ -76,8 +78,10 @@ public class Game extends JPanel {
 	
 	boolean placeBomb(int x, int y, Character owner) {
 		if (map[x][y] == null) {
-			map[x][y] = new Bomb(x, y, 1, Color.BLACK, owner, owner.getBombPower(), owner.hasPiercingBombs());
+			map[x][y] = new Bomb(x, y, 1, Color.BLACK, owner, owner.getBombPower(), owner.hasPiercingBombs(), owner.hasRemoteBombs());
 			bombs.add((Bomb) map[x][y]);
+			if (owner.hasRemoteBombs())
+				owner.addRemoteBomb((Bomb) map[x][y]);
 			for (Character character : characters) {
 				if (character.collidesWithTile(x, y)) {
 					character.addTempUncollidableTile(map[x][y]);
@@ -89,19 +93,20 @@ public class Game extends JPanel {
 	}
 	
 	public void paintComponent (Graphics g) {
-		((Graphics2D) g).setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+		Graphics2D gg = ((Graphics2D) g);
+		gg.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 		
-		g.setColor(Color.WHITE);
-		g.fillRect(0, 0, map.length * tileLength, map[0].length * tileLength);
+		gg.setColor(Color.WHITE);
+		gg.fillRect(0, 0, map.length * tileLength, map[0].length * tileLength);
 		
 		for (int x = 0; x < map.length; x++) {
 			for (int y = 0; y < map[x].length; y++) {
 				if (map[x][y] != null) {
-					g.setColor(map[x][y].getColor());
+					gg.setColor(map[x][y].getColor());
 					if (map[x][y] instanceof Bomb) {
-						g.fillOval(x * tileLength + Math.round(tileLength * 0.05f), y * tileLength + Math.round(tileLength * 0.05f), Math.round(tileLength * 0.9f), Math.round(tileLength * 0.9f));
+						gg.fillOval(x * tileLength + Math.round(tileLength * 0.05f), y * tileLength + Math.round(tileLength * 0.05f), Math.round(tileLength * 0.9f), Math.round(tileLength * 0.9f));
 					} else if (map[x][y] instanceof Powerup) {
-						g.fillOval(x * tileLength + Math.round(tileLength * (0.5f - ((Powerup)map[x][y]).RADIUS)), y * tileLength + Math.round(tileLength * (0.5f - ((Powerup)map[x][y]).RADIUS)), Math.round(((Powerup)map[x][y]).RADIUS * 2 * tileLength), Math.round(((Powerup)map[x][y]).RADIUS * 2 * tileLength));
+						gg.fillOval(x * tileLength + Math.round(tileLength * (0.5f - ((Powerup)map[x][y]).RADIUS)), y * tileLength + Math.round(tileLength * (0.5f - ((Powerup)map[x][y]).RADIUS)), Math.round(((Powerup)map[x][y]).RADIUS * 2 * tileLength), Math.round(((Powerup)map[x][y]).RADIUS * 2 * tileLength));
 					} else {
 						if (map[x][y].getArmor() == 0) {
 							if (map[x][y].getColor() == null) {
@@ -116,12 +121,12 @@ public class Game extends JPanel {
 					    				break;
 					    			}
 					    		}
-					    		g.setColor(map[x][y].getColor());
-								g.fillOval(x * tileLength + Math.round(tileLength * (0.5f - ((Powerup)map[x][y]).RADIUS)), y * tileLength + Math.round(tileLength * (0.5f - ((Powerup)map[x][y]).RADIUS)), Math.round(((Powerup)map[x][y]).RADIUS * 2 * tileLength), Math.round(((Powerup)map[x][y]).RADIUS * 2 * tileLength));
+					    		gg.setColor(map[x][y].getColor());
+								gg.fillOval(x * tileLength + Math.round(tileLength * (0.5f - ((Powerup)map[x][y]).RADIUS)), y * tileLength + Math.round(tileLength * (0.5f - ((Powerup)map[x][y]).RADIUS)), Math.round(((Powerup)map[x][y]).RADIUS * 2 * tileLength), Math.round(((Powerup)map[x][y]).RADIUS * 2 * tileLength));
 								continue;
 							}
 						}
-						g.fillRect(x * tileLength, y * tileLength, tileLength, tileLength);
+						gg.fillRect(x * tileLength, y * tileLength, tileLength, tileLength);
 					}
 				}
 			}
@@ -129,52 +134,60 @@ public class Game extends JPanel {
 		
 		for (Bomb bomb : bombs) {
 			if (bomb.hasExploded()) {
-				g.setColor(bomb.getColor());
-				g.fillRect(bomb.getExplosionSize()[2] * tileLength, Math.round((bomb.getY() + 0.05f) * tileLength),
+				gg.setColor(bomb.getColor());
+				gg.fillRect(bomb.getExplosionSize()[2] * tileLength, Math.round((bomb.getY() + 0.05f) * tileLength),
 						  (bomb.getExplosionSize()[3] - bomb.getExplosionSize()[2] + 1) * tileLength, Math.round(0.9f * tileLength));
-				g.fillRect(Math.round((bomb.getX() + 0.05f) * tileLength), bomb.getExplosionSize()[1] * tileLength,
+				gg.fillRect(Math.round((bomb.getX() + 0.05f) * tileLength), bomb.getExplosionSize()[1] * tileLength,
 						   Math.round(0.9f * tileLength), (bomb.getExplosionSize()[0] - bomb.getExplosionSize()[1] + 1) * tileLength);
 			}
 		}
 		
 		for (Character character : characters) {
 			if (!character.isAlive()) continue;
-			g.setColor(character.getColor());
-			g.fillOval(Math.round(character.getX() * tileLength - character.getRadius() * tileLength), Math.round(character.getY() * tileLength - character.getRadius() * tileLength), Math.round(character.getRadius() * 2 * tileLength), Math.round(character.getRadius() * 2 * tileLength));
+			gg.setColor(character.getColor());
+			gg.fillOval(Math.round(character.getX() * tileLength - character.getRadius() * tileLength), Math.round(character.getY() * tileLength - character.getRadius() * tileLength), Math.round(character.getRadius() * 2 * tileLength), Math.round(character.getRadius() * 2 * tileLength));
 		}
 		
-		g.setColor(Color.WHITE);
-		g.setFont(new Font("idk", g.getFont().getStyle(), 30));
-		g.drawString(Integer.toString(currentFPS), 10, 30);
+		gg.setColor(Color.WHITE);
+		gg.setFont(new Font("idk", gg.getFont().getStyle(), 30));
+		gg.drawString(Integer.toString(currentFPS), 10, 30);
 		
 		// TODO: Render top and right side GUIs
-		g.setColor(Color.LIGHT_GRAY);
-		g.fillRect(map.length * tileLength, 0, 200, map[0].length * tileLength);
+		gg.setColor(Color.LIGHT_GRAY);
+		gg.fillRect(map.length * tileLength, 0, 200, map[0].length * tileLength);
 		
 		for (int i = 0; i < characters.size(); i++) {
-			g.setColor(characters.get(i).getColor());
-			g.fillRect(map.length * tileLength, Math.round(map[0].length * tileLength / 4f * i), 200, Math.round(map[0].length * tileLength / 4f));
+			gg.setColor(characters.get(i).getColor());
+			gg.fillRect(map.length * tileLength, Math.round(map[0].length * tileLength / 4f * i), 200, Math.round(map[0].length * tileLength / 4f));
 			
-			g.setColor(Color.LIGHT_GRAY);
-			g.fillRect(map.length * tileLength + 20, map[0].length * tileLength / 4 * i + 20, 40, 60);
-			g.setColor(Color.BLACK);
-			g.drawString(Integer.toString(characters.get(i).getBombPower()), map.length * tileLength + 30, map[0].length * tileLength / 4 * i + 60);
+			gg.setColor(Color.LIGHT_GRAY);
+			gg.fillRect(map.length * tileLength + 20, map[0].length * tileLength / 4 * i + 20, 40, 60);
+			gg.setColor(Color.BLACK);
+			gg.drawString(Integer.toString(characters.get(i).getBombPower()), map.length * tileLength + 30, map[0].length * tileLength / 4 * i + 60);
 	
-			g.setColor(Color.LIGHT_GRAY);
-			g.fillRect(map.length * tileLength + 20, map[0].length * tileLength / 4 * i + 90, 40, 60);
-			g.setColor(Color.BLACK);
-			g.drawString(Integer.toString((int) characters.get(i).getSpeed()), map.length * tileLength + 30, map[0].length * tileLength / 4 * i + 130);
+			gg.setColor(Color.LIGHT_GRAY);
+			gg.fillRect(map.length * tileLength + 20, map[0].length * tileLength / 4 * i + 90, 40, 60);
+			gg.setColor(Color.BLACK);
+			gg.drawString(Integer.toString((int) characters.get(i).getSpeed()), map.length * tileLength + 30, map[0].length * tileLength / 4 * i + 130);
 
-			g.setColor(Color.LIGHT_GRAY);
-			g.fillRect(map.length * tileLength + 120, map[0].length * tileLength / 4 * i + 20, 60, 60);
-			g.setColor(Color.BLACK);
-			g.drawString(characters.get(i).getCurrentBombs() + "/" + characters.get(i).getMaxBombs(), map.length * tileLength + 130, map[0].length * tileLength / 4 * i + 60);
+			gg.setColor(Color.LIGHT_GRAY);
+			gg.fillRect(map.length * tileLength + 120, map[0].length * tileLength / 4 * i + 20, 60, 60);
+			gg.setColor(Color.BLACK);
+			gg.drawString(characters.get(i).getCurrentBombs() + "/" + characters.get(i).getMaxBombs(), map.length * tileLength + 130, map[0].length * tileLength / 4 * i + 60);
 	
-			g.setColor(Color.LIGHT_GRAY);
-			g.fillRect(map.length * tileLength + 120, map[0].length * tileLength / 4 * i + 90, 60, 60);
+			gg.setColor(Color.LIGHT_GRAY);
+			gg.fillRect(map.length * tileLength + 120, map[0].length * tileLength / 4 * i + 90, 60, 60);
 			if (characters.get(i).hasPiercingBombs()) {
-				g.setColor(Color.YELLOW);
-				g.fillOval(map.length * tileLength + 135, map[0].length * tileLength / 4 * i + 105, 30, 30);
+				gg.setColor(Powerup.POWERUPS[3].getColor());
+				gg.fillOval(map.length * tileLength + 125, map[0].length * tileLength / 4 * i + 95, 20, 20);
+			}
+			if (characters.get(i).hasRemoteBombs()) {
+				gg.setColor(Powerup.POWERUPS[4].getColor());
+				gg.fillOval(map.length * tileLength + 155, map[0].length * tileLength / 4 * i + 95, 20, 20);
+			}
+			if (characters.get(i).canKick()) {
+				gg.setColor(Powerup.POWERUPS[5].getColor());
+				gg.fillOval(map.length * tileLength + 125, map[0].length * tileLength / 4 * i + 125, 20, 20);
 			}
 		}
 	}

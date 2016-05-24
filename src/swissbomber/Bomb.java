@@ -6,22 +6,30 @@ public class Bomb extends Tile {
 
 	private int x, y;
 	private Character owner;
-	private long timer = 3000000000l;
+	private long timer;
+	public final long TIMER_START;
 	private boolean hasExploded = false;
 	
 	private int power;
-	private boolean piercing;
+	private boolean piercing, remote, remoteActivated = false;
 	
 	private int[] explosionSize = new int[4]; // Extends up, down, left, right
 	
-	Bomb(int x, int y, int armor, Color color, Character owner, int power, boolean piercing) {
+	Bomb(int x, int y, int armor, Color color, Character owner, int power, boolean piercing, boolean remote) {
 		super(armor, color);
 		
+		this.x = x;
+		this.y = y;
 		this.owner = owner;
 		this.power = power;
 		this.piercing = piercing;
-		this.x = x;
-		this.y = y;
+		this.remote = remote;
+		
+		if (!remote)
+			TIMER_START = 3000000000l;
+		else
+			TIMER_START = 750000000l;
+		timer = TIMER_START;
 	}
 
 	public int getX() {
@@ -34,7 +42,7 @@ public class Bomb extends Tile {
 	
 	public Color getColor() {
 		if (!hasExploded)
-			return new Color((int) Math.round((1 - timer / 3000000000d) * 100), 0, 0);
+			return new Color((int) Math.round((1 - timer / (double)TIMER_START) * 100), 0, 0);
 		else
 			return new Color((int) Math.round((1 - timer / -1000000000d) * 200), 0, 0);
 	}
@@ -48,7 +56,8 @@ public class Bomb extends Tile {
 	}
 	
 	public boolean step(Game game, long deltaTime) {
-		timer -= deltaTime;
+		if (!remote || remoteActivated)
+			timer -= deltaTime;
 		if (timer <= -1000000000) {
 			return true;
 		} else if (timer <= 0 && !hasExploded) {
@@ -127,5 +136,9 @@ public class Bomb extends Tile {
 	
 	public void explode(Game game) {
 		step(game, timer);
+	}
+	
+	public void detonate() {
+		remoteActivated = true;
 	}
 }

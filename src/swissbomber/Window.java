@@ -13,9 +13,11 @@ public class Window extends JFrame {
 		
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setTitle("Swissbomber");
-		
+
 		add(game);
+		System.out.println(game.getGraphicsConfiguration().getBufferCapabilities().isPageFlipping());
 		
+		setIgnoreRepaint(true);
 		setResizable(false);
 		pack();
 		setVisible(true);

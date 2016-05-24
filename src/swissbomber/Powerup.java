@@ -4,7 +4,14 @@ import java.awt.Color;
 
 public class Powerup extends Tile {
 
-	static final Powerup[] POWERUPS = {new Powerup(1, Color.RED, 10, "power+"), new Powerup(1, Color.GREEN, 10, "speed+"), new Powerup(1, Color.BLUE, 10, "bombs+"), new Powerup(1, Color.YELLOW, 2, "pierce")};
+	static final Powerup[] POWERUPS = {
+			new Powerup(1, Color.RED, 10, "power+"),
+			new Powerup(1, Color.GREEN, 10, "speed+"),
+			new Powerup(1, Color.BLUE, 10, "bombs+"),
+			new Powerup(1, Color.GRAY, 2, "pierce"),
+			new Powerup(1, Color.CYAN, 2, "remote"),
+			//new Powerup(1, Color.ORANGE, 2, "kick") // Kick still not implemented
+			};
 	public final int RARITY;
 	public final String EFFECT;
 	public final float RADIUS;

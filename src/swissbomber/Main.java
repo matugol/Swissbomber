@@ -4,7 +4,7 @@ import java.awt.Color;
 
 public class Main {
 	
-	public static void main(String[] args) {
+	public static void main(String[] args) {	
 		Tile w = new Tile(-1, Color.GRAY);
 		Tile c = new Tile(1, new Color(180, 160, 90));
 		Tile n = null;

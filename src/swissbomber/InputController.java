@@ -8,6 +8,7 @@ public class InputController implements Controller, KeyListener {
 	Character character;
 	private int[] keyCodes; // upKC, downKC, leftKC, rightKC, bombKC, specialKC;
 	private boolean[] keyPressed = new boolean[6];
+	private boolean[] isHeld = new boolean[2];
 	
 	public InputController(Character character, int[] keyCodes) {
 		this.character = character;
@@ -18,10 +19,17 @@ public class InputController implements Controller, KeyListener {
 	public void step(Game game, long deltaTime) {
 		if (!character.isAlive()) return;
 		
-		if (keyPressed[4] && character.getCurrentBombs() > 0) {
+		if (keyPressed[4] && !isHeld[0] && character.getCurrentBombs() > 0) {
 			if (game.placeBomb((int) character.getX(), (int) character.getY(), character)) {
 				character.removeBomb();
 			}
+			
+			isHeld[0] = true;
+		}
+		
+		if (keyPressed[5] && !isHeld[1]) {
+			character.detonateRemoteBomb();
+			isHeld[1] = true;
 		}
 		
 		int horizontal = (keyPressed[2] ? -1 : 0) + (keyPressed[3] ? 1 : 0);
@@ -58,6 +66,8 @@ public class InputController implements Controller, KeyListener {
 		for (int i = 0; i < keyCodes.length; i++) {
 			if (e.getKeyCode() == keyCodes[i]) {
 				keyPressed[i] = false;
+				if (i >= 4)
+					isHeld[i - 4] = false;
 			}
 		}
 	}

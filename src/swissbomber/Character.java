@@ -14,6 +14,9 @@ public class Character {
 	private float speed = 5; // Tiles per second
 	private int maxBombs = 1, currentBombs = maxBombs;
 	private boolean piercingBombs = false;
+	private boolean remoteBombs = false;
+	private List<Bomb> activeRemoteBombs = new ArrayList<Bomb>();
+	private boolean kicks = false;
 	
 	private float radius = 0.4f;
 	
@@ -71,6 +74,25 @@ public class Character {
 	
 	public boolean hasPiercingBombs() {
 		return piercingBombs;
+	}
+	
+	public boolean hasRemoteBombs() {
+		return remoteBombs;
+	}
+	
+	public void addRemoteBomb(Bomb bomb) {
+		activeRemoteBombs.add(bomb);
+	}
+	
+	public boolean detonateRemoteBomb() {
+		if (activeRemoteBombs.size() <= 0)
+			return false;
+		activeRemoteBombs.remove(0).detonate();
+		return true;
+	}
+	
+	public boolean canKick() {
+		return kicks;
 	}
 	
 	public float getRadius() {
@@ -164,6 +186,12 @@ public class Character {
 			break;
 		case "pierce":
 			piercingBombs = true;
+			break;
+		case "remote":
+			remoteBombs = true;
+			break;
+		case "kick":
+			kicks = true;
 			break;
 		default:
 			System.out.println("Error: Undefined powerup \"" + powerup.EFFECT + "\"");
