@@ -1,11 +1,11 @@
 package swissbomber;
 
+import java.awt.AlphaComposite;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.GraphicsEnvironment;
 import java.awt.RenderingHints;
 import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
@@ -31,7 +31,7 @@ public class Game extends JPanel {
 		this.map = map;
 		int[][] controls = {
 				{KeyEvent.VK_W, KeyEvent.VK_S, KeyEvent.VK_A, KeyEvent.VK_D, KeyEvent.VK_SPACE, KeyEvent.VK_SHIFT},
-				{KeyEvent.VK_UP, KeyEvent.VK_DOWN, KeyEvent.VK_LEFT, KeyEvent.VK_RIGHT, KeyEvent.VK_NUMPAD0, KeyEvent.VK_CONTROL},
+				{KeyEvent.VK_UP, KeyEvent.VK_DOWN, KeyEvent.VK_LEFT, KeyEvent.VK_RIGHT, KeyEvent.VK_END, KeyEvent.VK_CONTEXT_MENU},
 				{KeyEvent.VK_I, KeyEvent.VK_K, KeyEvent.VK_J, KeyEvent.VK_L, KeyEvent.VK_B, KeyEvent.VK_SLASH},
 				{}
 		};
@@ -104,7 +104,8 @@ public class Game extends JPanel {
 				if (map[x][y] != null) {
 					gg.setColor(map[x][y].getColor());
 					if (map[x][y] instanceof Bomb) {
-						gg.fillOval(x * tileLength + Math.round(tileLength * 0.05f), y * tileLength + Math.round(tileLength * 0.05f), Math.round(tileLength * 0.9f), Math.round(tileLength * 0.9f));
+						gg.drawImage(((Bomb) map[x][y]).getAnimation(), x * tileLength, y * tileLength, tileLength, tileLength, null);
+						//gg.fillOval(x * tileLength + Math.round(tileLength * 0.05f), y * tileLength + Math.round(tileLength * 0.05f), Math.round(tileLength * 0.9f), Math.round(tileLength * 0.9f));
 					} else if (map[x][y] instanceof Powerup) {
 						gg.fillOval(x * tileLength + Math.round(tileLength * (0.5f - ((Powerup)map[x][y]).RADIUS)), y * tileLength + Math.round(tileLength * (0.5f - ((Powerup)map[x][y]).RADIUS)), Math.round(((Powerup)map[x][y]).RADIUS * 2 * tileLength), Math.round(((Powerup)map[x][y]).RADIUS * 2 * tileLength));
 					} else {
@@ -132,13 +133,21 @@ public class Game extends JPanel {
 			}
 		}
 		
-		for (Bomb bomb : bombs) {
-			if (bomb.hasExploded()) {
-				gg.setColor(bomb.getColor());
-				gg.fillRect(bomb.getExplosionSize()[2] * tileLength, Math.round((bomb.getY() + 0.05f) * tileLength),
-						  (bomb.getExplosionSize()[3] - bomb.getExplosionSize()[2] + 1) * tileLength, Math.round(0.9f * tileLength));
-				gg.fillRect(Math.round((bomb.getX() + 0.05f) * tileLength), bomb.getExplosionSize()[1] * tileLength,
-						   Math.round(0.9f * tileLength), (bomb.getExplosionSize()[0] - bomb.getExplosionSize()[1] + 1) * tileLength);
+		for (Bomb bomb : bombs.toArray(new Bomb[bombs.size()])) {
+			if (bomb.hasExploded()) {				
+				BufferedImage img = new BufferedImage(this.getWidth(), this.getHeight(), BufferedImage.TYPE_INT_ARGB_PRE);
+				Graphics2D ig = img.createGraphics();
+				//ig.setColor(new Color(bomb.getColor().getRGB() & 16777216)); // Remove alpha from color
+				ig.setColor(new Color(bomb.getColor().getRed(), bomb.getColor().getGreen(), bomb.getColor().getBlue()));
+				ig.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC, bomb.getColor().getAlpha() / 255f));
+
+				ig.fillRect(bomb.getExplosionSize()[2] * tileLength, Math.round((bomb.getY() + 0.05f) * tileLength),
+						   (bomb.getExplosionSize()[3] - bomb.getExplosionSize()[2] + 1) * tileLength, Math.round(0.9f * tileLength));
+				ig.fillRect(Math.round((bomb.getX() + 0.05f) * tileLength), bomb.getExplosionSize()[1] * tileLength,
+						    Math.round(0.9f * tileLength), (bomb.getExplosionSize()[0] - bomb.getExplosionSize()[1] + 1) * tileLength);
+				
+				ig.dispose();
+				gg.drawImage(img, 0, 0, null);
 			}
 		}
 		
@@ -152,7 +161,6 @@ public class Game extends JPanel {
 		gg.setFont(new Font("idk", gg.getFont().getStyle(), 30));
 		gg.drawString(Integer.toString(currentFPS), 10, 30);
 		
-		// TODO: Render top and right side GUIs
 		gg.setColor(Color.LIGHT_GRAY);
 		gg.fillRect(map.length * tileLength, 0, 200, map[0].length * tileLength);
 		
@@ -192,7 +200,7 @@ public class Game extends JPanel {
 		}
 	}
 	
-	private static Runnable loop(Game game) {
+	private Runnable loop(Game game) {
 		return new Runnable() {
 
 			@Override

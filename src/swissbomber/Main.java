@@ -26,7 +26,8 @@ public class Main {
 			{w,w,w,w,w,w,w,w,w,w,w,w,w}
 		};
 
-		Window window = new Window(new Game(grid, 4));
+		Bomb.loadAnimations();
+		new Window(new Game(grid, 2));
 	}
 	
 }

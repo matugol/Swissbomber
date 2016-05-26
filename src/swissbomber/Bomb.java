@@ -1,9 +1,16 @@
 package swissbomber;
 
 import java.awt.Color;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+
+import javax.imageio.ImageIO;
 
 public class Bomb extends Tile {
 
+	private static BufferedImage[] animations = new BufferedImage[100];
+	
 	private int x, y;
 	private Character owner;
 	private long timer;
@@ -14,6 +21,22 @@ public class Bomb extends Tile {
 	private boolean piercing, remote, remoteActivated = false;
 	
 	private int[] explosionSize = new int[4]; // Extends up, down, left, right
+	
+	static void loadAnimations() {
+		for (int i = 1; i <= 100; i++) {
+			try {
+				animations[i - 1] = ImageIO.read(new File("bomb/" + String.format("%04d", i) + ".png"));
+			} catch (IOException | NullPointerException e) {
+				System.out.println("Error: Failed loading bomb animation image " + i);
+				e.printStackTrace();
+			}
+		}
+	}
+	
+	public BufferedImage getAnimation() {
+		if (Math.round(100f * timer / TIMER_START) <= 0) return animations[100];
+		return animations[100 - Math.round(100f * timer / TIMER_START)];
+	}
 	
 	Bomb(int x, int y, int armor, Color color, Character owner, int power, boolean piercing, boolean remote) {
 		super(armor, color);
@@ -44,7 +67,7 @@ public class Bomb extends Tile {
 		if (!hasExploded)
 			return new Color((int) Math.round((1 - timer / (double)TIMER_START) * 100), 0, 0);
 		else
-			return new Color((int) Math.round((1 - timer / -1000000000d) * 200), 0, 0);
+			return new Color((int) Math.round((1 - timer / -1000000000d) * 200), 0, 0, (int) Math.round((1 - timer / -1000000000d) * 255));
 	}
 	
 	public boolean hasExploded() {
@@ -103,9 +126,12 @@ public class Bomb extends Tile {
 		return false;
 	}
 	
-	public int destroy(Game game, int x, int y) {
+	private int destroy(Game game, int x, int y) {
 		for (Character character : game.getCharacters()) {
 			if (character.collidesWithTile(x, y)) {
+				System.out.println(owner.getColor().getRGB() + " killed " + character.getColor().getRGB());
+				System.out.println("Explosion Tile (" + x + ", " + y + ")");
+				System.out.println("Victim (" + character.getX() + ", " + character.getY() + ")");
 				character.kill();
 			}
 		}
@@ -135,6 +161,8 @@ public class Bomb extends Tile {
 	}
 	
 	public void explode(Game game) {
+		if (remote && !remoteActivated)
+			owner.detonateRemoteBomb(this);	
 		step(game, timer);
 	}
 	
