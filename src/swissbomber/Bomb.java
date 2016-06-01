@@ -11,14 +11,19 @@ public class Bomb extends Tile {
 
 	private static BufferedImage[] animations = new BufferedImage[100];
 	
-	private int x, y;
+	private int visualX, visualY;
+	private float realX, realY;
 	private Character owner;
 	private long timer;
 	public final long TIMER_START;
-	private boolean hasExploded = false;
+	private boolean exploded = false;
+	
+	private static final int[][] DIRECTIONS = { {1, 0}, {0, 1}, {-1, 0}, {0, -1} };
+	private boolean sliding = false;
+	private int slideDirection = 0;
 	
 	private int power;
-	private boolean piercing, remote, remoteActivated = false;
+	private boolean piercing, remote, remoteActivated = false, dangerous, powerful;
 	
 	private int[] explosionSize = new int[4]; // Extends up, down, left, right
 	
@@ -34,19 +39,23 @@ public class Bomb extends Tile {
 	}
 	
 	public BufferedImage getAnimation() {
-		if (Math.round(100f * timer / TIMER_START) <= 0) return animations[100];
+		if (Math.round(100f * timer / TIMER_START) <= 0) return animations[99];
 		return animations[100 - Math.round(100f * timer / TIMER_START)];
 	}
 	
-	Bomb(int x, int y, int armor, Color color, Character owner, int power, boolean piercing, boolean remote) {
-		super(armor, color);
+	Bomb(int x, int y, int armor, Character owner, int power, boolean piercing, boolean remote, boolean dangerous, boolean powerful) {
+		super(armor, null);
 		
-		this.x = x;
-		this.y = y;
+		this.visualX = x;
+		this.visualY = y;
+		this.realX = x + 0.5f;
+		this.realY = y + 0.5f;
 		this.owner = owner;
 		this.power = power;
 		this.piercing = piercing;
 		this.remote = remote;
+		this.dangerous = dangerous;
+		this.powerful = powerful;
 		
 		if (!remote)
 			TIMER_START = 3000000000l;
@@ -56,34 +65,118 @@ public class Bomb extends Tile {
 	}
 
 	public int getX() {
-		return x;
+		return visualX;
 	}
 	
 	public int getY() {
-		return y;
+		return visualY;
+	}
+	
+	public float getRealX() {
+		return realX;
+	}
+	
+	public float getRealY() {
+		return realY;
+	}
+	
+	public Character getOwner() {
+		return owner;
 	}
 	
 	public Color getColor() {
-		if (!hasExploded)
+		if (!exploded)
 			return new Color((int) Math.round((1 - timer / (double)TIMER_START) * 100), 0, 0);
 		else
 			return new Color((int) Math.round((1 - timer / -1000000000d) * 200), 0, 0, (int) Math.round((1 - timer / -1000000000d) * 255));
 	}
 	
 	public boolean hasExploded() {
-		return hasExploded;
+		return exploded;
 	}
 	
 	public int[] getExplosionSize() {
 		return explosionSize;
 	}
 	
+	public boolean isRemote() {
+		return remote;
+	}
+	
+	public boolean kick(Game game, int direction) {
+		if (game.getMap()[visualX + DIRECTIONS[direction][0]][visualY + DIRECTIONS[direction][1]] != null) return false;
+		
+		sliding = true;
+		slideDirection = direction;
+		
+		mapLoop:
+		for (int x = 0; x < game.getMap().length; x++) {
+			for (int y = 0; y < game.getMap()[x].length; y++) {
+				if (game.getMap()[x][y] == this) {
+					game.getMap()[x][y] = null;
+					break mapLoop;
+				}
+			}
+		}
+		
+		return true;
+	}
+	
+	public boolean isSliding() {
+		return sliding;
+	}
+	
+	public boolean isDangerous() {
+		return dangerous;
+	}
+	
 	public boolean step(Game game, long deltaTime) {
 		if (!remote || remoteActivated)
 			timer -= deltaTime;
+		if (sliding) { // TODO: Detect and stop when hits player, detect and transform into deadly bomb when hits other moving bomb
+			realX += DIRECTIONS[slideDirection][0] * 7.5f / 1000000000d * deltaTime;
+			realY += DIRECTIONS[slideDirection][1] * 7.5f / 1000000000d * deltaTime;
+			
+			for (Bomb bomb : game.getBombs().toArray(new Bomb[game.getBombs().size()])) {
+				if (bomb.isSliding() && bomb != this) {
+					if (Math.abs(realX - bomb.getRealX()) < 1 && Math.abs(realY - bomb.getRealY()) < 1) {
+						int newBombX = (int) ((realX + bomb.getRealX()) / 2);
+						int newBombY = (int) ((realY + bomb.getRealY()) / 2);
+						
+						game.getMap()[newBombX][newBombY] = new Bomb(newBombX, newBombY, 1, null, 1, false, false, true, false);
+						
+						if (bomb.isRemote())
+							bomb.getOwner().detonateRemoteBomb(bomb);
+						game.getBombs().set(game.getBombs().indexOf(bomb), (Bomb) game.getMap()[newBombX][newBombY]);
+						
+						if (owner != null) owner.addBomb();
+						if (bomb.getOwner() != null) bomb.getOwner().addBomb();
+						
+						return true;
+					}
+				}
+			}
+			
+			visualX = (int) realX;
+			visualY = (int) realY;
+			int nextX = visualX + DIRECTIONS[slideDirection][0];
+			int nextY = visualY + DIRECTIONS[slideDirection][1];
+			boolean stop = false;
+			if (DIRECTIONS[slideDirection][0] != 0)
+				stop = (visualX + 0.5f) * DIRECTIONS[slideDirection][0] <= realX * DIRECTIONS[slideDirection][0];
+			else  
+				stop = (visualY + 0.5f) * DIRECTIONS[slideDirection][1] <= realY * DIRECTIONS[slideDirection][1];
+			
+			if (game.getMap()[nextX][nextY] != null && stop) { // Should moving bombs go through powerups? (and should they consume them or not if they go through?)
+				realX = visualX + 0.5f;
+				realY = visualY + 0.5f;
+				sliding = false;
+				game.getMap()[visualX][visualY] = this;
+			}
+		}
 		if (timer <= -1000000000) {
 			return true;
-		} else if (timer <= 0 && !hasExploded) {
+		} else if (timer <= 0 && !exploded) { // TODO: Make dangerous explosion
 			Tile[][] map = game.getMap();
 			
 			for (int x = 0; x < map.length; x++) {
@@ -94,16 +187,16 @@ public class Bomb extends Tile {
 				}
 			}
 			
-			explosionSize[0] = y;
-			explosionSize[1] = y;
-			explosionSize[2] = x;
-			explosionSize[3] = x;
+			explosionSize[0] = visualY;
+			explosionSize[1] = visualY;
+			explosionSize[2] = visualX;
+			explosionSize[3] = visualX;
 			
-			destroy(game, x, y);
+			destroy(game, visualX, visualY);
 			int[][] explodeDirections = { {0, 1}, {1, 0}, {0, -1}, {-1, 0} };
 			for (int d = 0; d < explodeDirections.length; d++) {
-				int destroyX = x, destroyY = y;
-				for (int i = 0; i < power; i++) {
+				int destroyX = visualX, destroyY = visualY;
+				for (int i = 0; i < (powerful ? Integer.MAX_VALUE : power); i++) {
 					destroyX += explodeDirections[d][0];
 					destroyY += explodeDirections[d][1];
 
@@ -120,8 +213,9 @@ public class Bomb extends Tile {
 				}
 			}
 			
-			owner.addBomb();
-			hasExploded = true;
+			if (owner != null) owner.addBomb();
+			exploded = true;
+			sliding = false;
 		}
 		return false;
 	}
@@ -129,7 +223,7 @@ public class Bomb extends Tile {
 	private int destroy(Game game, int x, int y) {
 		for (Character character : game.getCharacters()) {
 			if (character.collidesWithTile(x, y)) {
-				System.out.println(owner.getColor().getRGB() + " killed " + character.getColor().getRGB());
+				System.out.println((owner != null ? owner.getColor().getRGB() : "Nobody") + " killed " + character.getColor().getRGB());
 				System.out.println("Explosion Tile (" + x + ", " + y + ")");
 				System.out.println("Victim (" + character.getX() + ", " + character.getY() + ")");
 				character.kill();
@@ -145,7 +239,7 @@ public class Bomb extends Tile {
 				game.getMap()[x][y] = null;
 			} else {
 				if (power >= tile.getArmor() && tile.getArmor() > 0) { // TODO: Better armor mechanics
-			    	if (Math.random() >= 0.75) {
+			    	if (Math.random() >= 0.7) {
 			    		game.getMap()[x][y] = Tile.SURGE;
 			    	} else {
 			    		game.getMap()[x][y] = Tile.ASH;

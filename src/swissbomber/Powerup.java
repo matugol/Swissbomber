@@ -8,10 +8,13 @@ public class Powerup extends Tile {
 			new Powerup(1, Color.RED, 10, "power+"),
 			new Powerup(1, Color.GREEN, 10, "speed+"),
 			new Powerup(1, Color.BLUE, 10, "bombs+"),
-			new Powerup(1, Color.GRAY, 2, "pierce"),
-			new Powerup(1, Color.CYAN, 2, "remote"),
-			//new Powerup(1, Color.ORANGE, 2, "kick") // Kick still not implemented
-			};
+			new Powerup(1, Color.GRAY, 3, "pierce"),
+			new Powerup(1, Color.CYAN, 3, "remote"),
+			new Powerup(1, Color.ORANGE, 3, "kick"),
+			new Powerup(1, Color.BLACK, 10, "nextDangerous"),
+			new Powerup(1, Color.ORANGE, 10, "nextPowerful")
+	};
+	
 	public final int RARITY;
 	public final String EFFECT;
 	public final float RADIUS;
