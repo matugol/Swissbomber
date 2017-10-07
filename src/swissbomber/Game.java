@@ -18,18 +18,28 @@ public class Game extends JPanel {
 	
 	private static final long serialVersionUID = -7101890057819507949L;
 	
+	public static Game game;
+	
 	private List<Character> characters = new ArrayList<>();
 	private List<Controller> controllers = new ArrayList<>();
 	private List<Bomb> bombs = new ArrayList<>();
 	private Tile[][] map;
 	private long timer = 60000000000l * 2;
 	private int deathProgress = 0;
-	
+
 	private int currentFPS = 0;
 	private int targetFPS = 60;
 	private int tileLength = 50;
 	
+	/**
+	 * Creates the game and sets up the environment for the characters using a given map.
+	 * 
+	 * @param map			the map which the game will use
+	 * @param playerCount	how many players will be in the game
+	 * @see Tile
+	 */
 	Game(Tile[][] map, int playerCount) {	
+		game = this;
 		this.map = map;
 		int[][] controls = {
 				{KeyEvent.VK_W, KeyEvent.VK_S, KeyEvent.VK_A, KeyEvent.VK_D, KeyEvent.VK_SPACE, KeyEvent.VK_SHIFT},
@@ -82,6 +92,16 @@ public class Game extends JPanel {
 		return tileLength;
 	}
 	
+	/**
+	 * Places a bomb at given coordinates from a given owner. Also manages temporary uncollidable tiles and powerup effects.
+	 * 
+	 * @param x		the x coordinate of the grid in which the bomb has been placed
+	 * @param y		the y coordinate of the grid in which the bomb has been placed
+	 * @param owner	the character which has placed the bomb
+	 * @return		whether or not the bomb has been successfully placed
+	 * @see Bomb
+	 * @see Character
+	 */
 	boolean placeBomb(int x, int y, Character owner) {
 		if (map[x][y] == null) {
 			map[x][y] = new Bomb(x, y, 1, owner, owner.getBombPower(), owner.hasPiercingBombs(), owner.hasRemoteBombs(), owner.useDangerous(), owner.usePowerful());
@@ -243,16 +263,21 @@ public class Game extends JPanel {
 			}
 		};
 	}
-			
+	
+	/**
+	 * Updates all objects in the game, including characters, bombs, and the death progress.
+	 * 
+	 * @param deltaTime the time passed since the last frame in nanoseconds
+	 */
 	private void update(long deltaTime) {
 		timer -= deltaTime;
 		
 		for (Controller controller : controllers) {
-			controller.step(this, deltaTime);
+			controller.step(deltaTime);
 		}
 		
 		for (int i = 0; i < bombs.size(); i++) {
-			if (bombs.get(i).step(this, deltaTime)) {
+			if (bombs.get(i).step(deltaTime)) {
 				bombs.remove(i);
 				i--;
 			}
@@ -286,7 +311,7 @@ public class Game extends JPanel {
 				n--;
 			}
 			
-			if (map[x][y] instanceof Bomb) ((Bomb) map[x][y]).explode(this);	
+			if (map[x][y] instanceof Bomb) ((Bomb) map[x][y]).explode();	
 			for (Character character : characters) {
 				if (character.collidesWithTile(x, y)) {
 					System.out.println("Death killed " + character.getColor().getRGB());

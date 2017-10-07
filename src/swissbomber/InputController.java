@@ -6,8 +6,11 @@ import java.awt.event.KeyListener;
 public class InputController implements Controller, KeyListener {
 
 	Character character;
-	private int[] keyCodes; // upKC, downKC, leftKC, rightKC, bombKC, specialKC;
+	/** The key codes for each of actions the player can take. <br><code>{up, down, left, right, bomb, special}</code> */
+	private int[] keyCodes;
+	/** Whether each key the player can press is pressed down or not. <br><code>{up, down, left, right, bomb, special}</code> */
 	private boolean[] keyPressed = new boolean[6];
+	/** Whether or not a key the player can press has been held down for longer than a frame. <br><code>{bomb, special}</code> */
 	private boolean[] isHeld = new boolean[2];
 	
 	public InputController(Character character, int[] keyCodes) {
@@ -15,12 +18,17 @@ public class InputController implements Controller, KeyListener {
 		this.keyCodes = keyCodes;
 	}
 	
+	/**
+	 * Processes all input for the character and updates them
+	 * 
+	 * @param deltaTime	the time passed since the last frame in nanoseconds
+	 */
 	@Override
-	public void step(Game game, long deltaTime) {
+	public void step(long deltaTime) {
 		if (!character.isAlive()) return;
 		
 		if (keyPressed[4] && !isHeld[0] && character.getCurrentBombs() > 0) {
-			if (game.placeBomb((int) character.getX(), (int) character.getY(), character)) {
+			if (Game.game.placeBomb((int) character.getX(), (int) character.getY(), character)) {
 				character.removeBomb();
 			}
 			
@@ -49,7 +57,7 @@ public class InputController implements Controller, KeyListener {
 			}
 		}
 				
-		character.move(game, angle, deltaTime);
+		character.move(angle, deltaTime);
 	}
 	
 	@Override

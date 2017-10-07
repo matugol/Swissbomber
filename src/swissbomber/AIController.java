@@ -3,7 +3,7 @@ package swissbomber;
 public class AIController implements Controller {
 
 	@Override
-	public void step(Game game, long deltaTime) {
+	public void step(long deltaTime) {
 		// TODO: Add AI
 	}
 

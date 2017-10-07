@@ -13,14 +13,15 @@ public class Character {
 	private int bombPower = 1;
 	private float speed = 5; // Tiles per second
 	private int maxBombs = 1, currentBombs = maxBombs;
-	private boolean piercingBombs = true;
+	private boolean piercingBombs = false;
 	private boolean remoteBombs = false;
 	private List<Bomb> activeRemoteBombs = new ArrayList<Bomb>();
-	private boolean kicks = true;
+	private boolean kicks = false;
 	private boolean nextDangerous = false, nextPowerful = false;
 	
 	private float radius = 0.4f;
 	
+	/** List of tiles which this character is allowed to phase through until they move away away. */
 	private List<Tile> tempUncollidableTiles = new ArrayList<Tile>();
 	
 	Character(float positionX, float positionY, Color color) {
@@ -123,18 +124,30 @@ public class Character {
 		return radius;
 	}
 	
+	/**
+	 * Allows character to phase through the specified tile until they move away from it's area.
+	 * 
+	 * @param tile the tile which the character can phase through
+	 */
 	public void addTempUncollidableTile(Tile tile) {
 		tempUncollidableTiles.add(tile);
 	}
 	
-	public void move(Game game, double angle, long deltaTime) {
+	/**
+	 * Moves this character along a specified angle for a certain amount of time according to their speed.
+	 * Also checks for all collision when doing so.
+	 * 
+	 * @param angle		angle of movement in degrees
+	 * @param deltaTime	time passed since last frame in nanoseconds
+	 */
+	public void move(double angle, long deltaTime) {
 		if (!alive) return;
 		
 		double distance = speed / 1000000000 * deltaTime;
 		positionX += Math.cos(Math.toRadians(angle)) * distance;
 		positionY -= Math.sin(Math.toRadians(angle)) * distance;
 		
-		for (Bomb bomb : game.getBombs()) {
+		for (Bomb bomb : Game.game.getBombs()) {
 			if (bomb.isSliding()) {
 				float distanceX = Math.abs(positionX - bomb.getRealX());
 				float distanceY = Math.abs(positionY - bomb.getRealY());
@@ -146,6 +159,7 @@ public class Character {
 				if (distanceX <= 0.5f && distanceX <= distanceY) { positionY = properPosition(positionY, bomb.getRealY()); continue;}
 								
 				if (Math.pow(distanceX - 0.5f, 2) + Math.pow(distanceY - 0.5f, 2) <= Math.pow(radius, 2)) {
+					System.out.println("collide");
 					if (distanceY > distanceX)
 						positionY = properPosition(positionY, bomb.getRealY());
 					else
@@ -154,11 +168,11 @@ public class Character {
 			}
 		}
 		
-		int[][] collidableTiles = { {0, 0},  {-1, -1}, {-1, 0}, {-1, 1}, {0, -1}, {0, 1}, {1, -1}, {1, 0}, {1, 1} };
+		final int[][] collidableTiles = { {0, 0},  {-1, -1}, {-1, 0}, {-1, 1}, {0, -1}, {0, 1}, {1, -1}, {1, 0}, {1, 1} };
 		
 		collidableTiles:
 		for (int[] collidableTile : collidableTiles) {
-			Tile tile = game.getMap()[(int) (positionX + collidableTile[0])][(int) (positionY + collidableTile[1])];
+			Tile tile = Game.game.getMap()[(int) (positionX + collidableTile[0])][(int) (positionY + collidableTile[1])];
 			if (tile != null) {
 				for (Tile tempUTile : tempUncollidableTiles) {
 					if (tile == tempUTile) {
@@ -175,7 +189,7 @@ public class Character {
 				if (tile instanceof Powerup) {
 					if (collidesWithPowerup((int) (positionX + collidableTile[0]), (int) (positionY + collidableTile[1]), (Powerup) tile)) {
 						activatePowerup((Powerup) tile);
-						game.getMap()[(int) (positionX + collidableTile[0])][(int) (positionY + collidableTile[1])] = null;
+						Game.game.getMap()[(int) (positionX + collidableTile[0])][(int) (positionY + collidableTile[1])] = null;
 					}
 					continue;
 				} else if (tile instanceof Bomb && kicks) {
@@ -188,7 +202,7 @@ public class Character {
 							direction = (Math.signum(positionY - ((int) (positionY + collidableTile[1]) + 0.5f)) == 1 ? 3 : 1);
 						}
 						
-						if (((Bomb) tile).kick(game, direction)) continue;
+						if (((Bomb) tile).kick(direction)) continue;
 					}
 				}
 				
@@ -212,6 +226,14 @@ public class Character {
 		return tile + (position > tile ? 1 : -1) * (radius + 0.5f);
 	}
 	
+	/**
+	 * Checks if this character collides with a tile at given coordinates.
+	 * 
+	 * @param x	x coordinate in the map of the tile
+	 * @param y	y coordinate in the map of the tile
+	 * @return	whether the character collides with the tile or not
+	 * @see		Tile
+	 */
 	public boolean collidesWithTile(int x, int y) {
 		float distanceX = Math.abs(positionX - (x + 0.5f));
 		float distanceY = Math.abs(positionY - (y + 0.5f));
@@ -225,10 +247,24 @@ public class Character {
 		return Math.pow(distanceX - 0.5f, 2) + Math.pow(distanceY - 0.5f, 2) <= Math.pow(radius, 2);
 	}
 	
+	/**
+	 * Checks if this character collides with a certain powerup at given coordinates
+	 * @param x			x coordinate in the map of the powerup
+	 * @param y			y coordinate in the map of the powerup
+	 * @param powerup	the <code>Powerup</code> to test collision with
+	 * @return			whether or not the character collides with the powerup or not
+	 * @see				Powerup
+	 */
 	public boolean collidesWithPowerup(int x, int y, Powerup powerup) {
 		return Math.sqrt(Math.pow(positionX - (x + 0.5f), 2) + Math.pow(positionY - (y + 0.5f), 2)) <= radius + powerup.RADIUS;
 	}
 	
+	/**
+	 * Activates a given powerup and applies it's effects onto this character.
+	 * 
+	 * @param powerup	the powerup to activate
+	 * @see				Powerup
+	 */
 	public void activatePowerup(Powerup powerup) {
 		switch (powerup.EFFECT) {
 		case "power+":
